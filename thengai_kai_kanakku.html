@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f766e">
+<title>தேங்காய் காய் கணக்கு</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Noto Sans Tamil",sans-serif;background:#f0fdfa;color:#123;padding-bottom:30px}
+header{background:#0f766e;color:white;padding:22px 16px;text-align:center;box-shadow:0 2px 8px #0002}
+header h1{margin:0;font-size:25px} header p{margin:6px 0 0;font-size:14px;opacity:.9}
+.container{max-width:700px;margin:auto;padding:14px}
+.card{background:white;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px #00000012}
+label{display:block;font-weight:700;margin-bottom:7px}
+input{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:10px;font-size:17px;outline:none}
+input:focus{border-color:#0f766e;box-shadow:0 0 0 3px #0f766e22}
+.row{display:grid;grid-template-columns:1fr 130px;gap:10px}
+button{border:0;border-radius:10px;padding:13px 15px;font-size:16px;font-weight:700;cursor:pointer}
+.primary{width:100%;margin-top:12px;background:#0f766e;color:white}
+.secondary{background:#e2e8f0;color:#172033}
+.danger{background:#fee2e2;color:#b91c1c;padding:9px 11px}
+.summary{background:#115e59;color:white;text-align:center}
+.total{font-size:34px;font-weight:800;margin-top:3px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:11px 6px;border-bottom:1px solid #e2e8f0;text-align:left}
+th:last-child,td:last-child{text-align:right}
+.num{text-align:right}
+.empty{text-align:center;color:#64748b;padding:20px 5px}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.actions button{flex:1;min-width:120px}
+.small{font-size:13px;color:#64748b;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#172033;color:#fff;padding:10px 16px;border-radius:999px;display:none;z-index:5}
+@media(max-width:430px){.row{grid-template-columns:1fr 110px}header h1{font-size:22px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🥥 தேங்காய் காய் கணக்கு</h1>
+  <p>பெயர் மற்றும் உரித்த காய் எண்ணிக்கையை எளிதாக பதிவு செய்யுங்கள்</p>
+</header>
+
+<div class="container">
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="name">பெயர்</label>
+        <input id="name" type="text" placeholder="உதா: ரவி" autocomplete="off">
+      </div>
+      <div>
+        <label for="count">காய் எண்ணிக்கை</label>
+        <input id="count" type="number" min="0" inputmode="numeric" placeholder="0">
+      </div>
+    </div>
+    <button class="primary" onclick="addEntry()">＋ கணக்கில் சேர்க்கவும்</button>
+    <div class="small">உதாரணம்: ரவி — 125 காய்</div>
+  </div>
+
+  <div class="card summary">
+    <div>மொத்த காய்கள்</div>
+    <div class="total" id="total">0</div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>#</th><th>பெயர்</th><th>காய்கள்</th><th> </th></tr></thead>
+      <tbody id="list"></tbody>
+    </table>
+    <div id="empty" class="empty">இன்னும் எந்த கணக்கும் சேர்க்கப்படவில்லை.</div>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <button class="secondary" onclick="window.print()">🖨️ Print / PDF</button>
+      <button class="secondary" onclick="downloadCSV()">📥 CSV</button>
+      <button class="danger" onclick="clearAll()">🗑️ அனைத்தையும் அழிக்க</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY="thengai_kai_kanakku_v1";
+let entries=JSON.parse(localStorage.getItem(KEY)||"[]");
+
+function save(){localStorage.setItem(KEY,JSON.stringify(entries));}
+function showToast(msg){
+  const t=document.getElementById("toast"); t.textContent=msg; t.style.display="block";
+  clearTimeout(window.toastTimer); window.toastTimer=setTimeout(()=>t.style.display="none",1800);
+}
+function addEntry(){
+  const name=document.getElementById("name").value.trim();
+  const count=Number(document.getElementById("count").value);
+  if(!name){showToast("பெயரை உள்ளிடுங்கள்");document.getElementById("name").focus();return}
+  if(!Number.isFinite(count)||count<0||!Number.isInteger(count)){
+    showToast("சரியான காய் எண்ணிக்கையை உள்ளிடுங்கள்");document.getElementById("count").focus();return
+  }
+  entries.push({name,count});
+  save(); render();
+  document.getElementById("name").value="";
+  document.getElementById("count").value="";
+  document.getElementById("name").focus();
+  showToast("கணக்கு சேர்க்கப்பட்டது ✓");
+}
+function removeEntry(i){
+  entries.splice(i,1); save(); render(); showToast("பதிவு நீக்கப்பட்டது");
+}
+function editEntry(i){
+  const e=entries[i];
+  const n=prompt("பெயரை மாற்றவும்:",e.name);
+  if(n===null)return;
+  const c=prompt("காய் எண்ணிக்கையை மாற்றவும்:",e.count);
+  if(c===null)return;
+  const count=Number(c);
+  if(!n.trim()||!Number.isInteger(count)||count<0){alert("சரியான தகவலை உள்ளிடுங்கள்.");return}
+  entries[i]={name:n.trim(),count}; save(); render(); showToast("பதிவு மாற்றப்பட்டது ✓");
+}
+function render(){
+  const tbody=document.getElementById("list"), empty=document.getElementById("empty");
+  tbody.innerHTML="";
+  let total=0;
+  entries.forEach((e,i)=>{
+    total+=e.count;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i+1}</td><td>${escapeHTML(e.name)}</td><td class="num"><b>${e.count}</b></td>
+    <td class="num"><button class="secondary" style="padding:7px 9px" onclick="editEntry(${i})">✏️</button>
+    <button class="danger" style="padding:7px 9px" onclick="removeEntry(${i})">🗑️</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById("total").textContent=total.toLocaleString("en-IN");
+  empty.style.display=entries.length?"none":"block";
+}
+function escapeHTML(s){return s.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+function clearAll(){
+  if(!entries.length)return;
+  if(confirm("அனைத்து கணக்குகளையும் அழிக்க வேண்டுமா?")){
+    entries=[];save();render();showToast("அனைத்து கணக்குகளும் அழிக்கப்பட்டது");
+  }
+}
+function downloadCSV(){
+  if(!entries.length){showToast("முதலில் கணக்கு சேர்க்கவும்");return}
+  let csv="\uFEFFபெயர்,காய் எண்ணிக்கை\n";
+  entries.forEach(e=>csv+=`"${e.name.replaceAll('"','""')}",${e.count}\n`);
+  csv+=`\nமொத்தம்,${entries.reduce((s,e)=>s+e.count,0)}\n`;
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="thengai_kai_kanakku.csv";a.click();URL.revokeObjectURL(a.href);
+}
+document.getElementById("count").addEventListener("keydown",e=>{if(e.key==="Enter")addEntry()});
+document.getElementById("name").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("count").focus()});
+render();
+</script>
+</body>
+</html>
